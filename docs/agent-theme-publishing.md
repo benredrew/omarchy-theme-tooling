@@ -17,6 +17,26 @@ agent tooling lives under `~/.local/bin` and `~/.agents`.
 4. Never apply a new palette before the user has reviewed it, unless they
    explicitly ask to apply it.
 
+## Lo-fi wallpaper spectrum
+
+Use `agent-theme-lofi --colors colors.toml <source-image> <output-directory>`
+to create a non-destructive A–D spectrum of same-framing wallpaper copies. It
+never changes the source and refuses to reuse a non-empty output directory.
+
+| File | Intent |
+| --- | --- |
+| `A-crisp.png` | Faithful clean baseline. |
+| `B-lofi.png` | Gentle softening, lower saturation/local contrast, and restrained tonal compression. |
+| `C-heavy-lofi.png` | Clearly stylized, muted, and softer while preserving the focal silhouette. |
+| `D-ultra-lofi.png` | Dreamy maximum treatment that remains legible rather than becoming a color wash. |
+
+The command increases the same controls monotonically across the spectrum:
+micro-detail reduction, highlight/shadow compression, muted theme-led color,
+and a restrained accent tint. It preserves crop, orientation, and resolution.
+After rendering, use `agent-theme-preview wallpaper` on the levels and submit
+the resulting board to Agent Gallery as a floating review set. Apply or package
+only the user-selected A–D level.
+
 ## Package
 
 Create a public repository named `omarchy-<name>-theme`. It contains only:

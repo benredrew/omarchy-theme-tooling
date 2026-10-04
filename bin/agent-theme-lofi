@@ -1,0 +1,96 @@
+#!/usr/bin/env bash
+# Deterministically turn one wallpaper into an ordered, non-destructive lo-fi spectrum.
+set -euo pipefail
+
+usage() {
+  cat <<'EOF'
+Usage:
+  agent-theme-lofi [--tint #RRGGBB | --colors colors.toml] <source-image> <output-directory>
+
+Creates four same-framing PNG copies without modifying the source image:
+  A-crisp.png       faithful baseline
+  B-lofi.png        restrained softening and tonal compression
+  C-heavy-lofi.png  clearly stylized, muted, and textured
+  D-ultra-lofi.png  dreamy maximum treatment while retaining legibility
+
+--tint uses a theme-led color wash. --colors reads the `accent` value from an
+Omarchy colors.toml. Without either option, the neutral dusk tint #9A5B58 is
+used. The output directory must be empty (or not exist), preventing accidental
+replacement of a prior spectrum.
+EOF
+}
+
+need_image() {
+  [[ -f $1 ]] || { echo "agent-theme-lofi: missing image: $1" >&2; exit 2; }
+  [[ $(file --brief --mime-type -- "$1") == image/* ]] || {
+    echo "agent-theme-lofi: not an image: $1" >&2
+    exit 2
+  }
+}
+
+toml_color() {
+  local key="$1" colors="$2" value
+  value=$(sed -nE "s/^[[:space:]]*${key}[[:space:]]*=[[:space:]]*\\\"(#[0-9A-Fa-f]{6})\\\"[[:space:]]*(#.*)?$/\\1/p" "$colors" | head -n 1)
+  [[ -n $value ]] || { echo "agent-theme-lofi: colors.toml lacks '$key'" >&2; exit 2; }
+  printf '%s\n' "$value"
+}
+
+main() {
+  local tint='#9A5B58' colors=''
+  while (( $# > 0 )); do
+    case "$1" in
+      --tint)
+        tint="${2:?agent-theme-lofi: --tint needs #RRGGBB}"
+        shift 2
+        ;;
+      --colors)
+        colors="${2:?agent-theme-lofi: --colors needs colors.toml}"
+        shift 2
+        ;;
+      -h|--help|help)
+        usage
+        return 0
+        ;;
+      *) break ;;
+    esac
+  done
+  (( $# == 2 )) || { usage >&2; exit 2; }
+  [[ $tint =~ ^#[0-9A-Fa-f]{6}$ ]] || { echo 'agent-theme-lofi: tint must be #RRGGBB' >&2; exit 2; }
+  [[ -z $colors || -f $colors ]] || { echo "agent-theme-lofi: missing colors file: $colors" >&2; exit 2; }
+  [[ -z $colors || $tint == '#9A5B58' ]] || {
+    echo 'agent-theme-lofi: choose either --tint or --colors, not both' >&2
+    exit 2
+  }
+  [[ -n $colors ]] && tint=$(toml_color accent "$colors")
+
+  local source="$1" output_dir="$2"
+  need_image "$source"
+  if [[ -e $output_dir ]] && [[ -n $(find "$output_dir" -mindepth 1 -maxdepth 1 -print -quit) ]]; then
+    echo "agent-theme-lofi: output directory is not empty: $output_dir" >&2
+    exit 2
+  fi
+  mkdir -p "$output_dir"
+
+  local source_frame="${source}[0]"
+  local a="$output_dir/A-crisp.png" b="$output_dir/B-lofi.png"
+  local c="$output_dir/C-heavy-lofi.png" d="$output_dir/D-ultra-lofi.png"
+  local -a stable_png=(-colorspace sRGB -strip -define png:exclude-chunk=date,time -define png:compression-level=0)
+
+  # The treatment intentionally increases along the same four dimensions:
+  # lower saturation/local contrast, lighter shadows, softened micro-detail,
+  # then a restrained theme-color wash. Geometry and framing never change.
+  MAGICK_THREAD_LIMIT=1 magick "$source_frame" "${stable_png[@]}" "PNG24:$a"
+  MAGICK_THREAD_LIMIT=1 magick "$source_frame" -modulate 96,86,100 \
+    -brightness-contrast 1,-7 -evaluate Add 1.2% -blur 0x0.22 \
+    -fill "$tint" -colorize 3 "${stable_png[@]}" "PNG24:$b"
+  MAGICK_THREAD_LIMIT=1 magick "$source_frame" -modulate 92,70,100 \
+    -brightness-contrast 3,-15 -evaluate Add 2.8% -blur 0x0.55 \
+    -fill "$tint" -colorize 8 "${stable_png[@]}" "PNG24:$c"
+  MAGICK_THREAD_LIMIT=1 magick "$source_frame" -modulate 88,56,100 \
+    -brightness-contrast 5,-22 -evaluate Add 4.5% -blur 0x1.05 \
+    -fill "$tint" -colorize 14 "${stable_png[@]}" "PNG24:$d"
+
+  printf 'Created lo-fi spectrum in %s using tint %s\n' "$output_dir" "$tint"
+}
+
+main "$@"
