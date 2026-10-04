@@ -36,16 +36,23 @@ toml_color() {
   printf '%s\n' "$value"
 }
 
+luminance_of() {
+  local hex="$1"
+  printf '%s\n' $(((2126 * 16#${hex:1:2} + 7152 * 16#${hex:3:2} + 722 * 16#${hex:5:2}) / 10000))
+}
+
+# Label color for a swatch: the darker of the two candidates on a light swatch,
+# the lighter on a dark one. Candidates are ordered by luminance rather than by
+# role, so light themes (where dark_background is light) label legibly too.
 text_on() {
-  local hex="$1" r g b luminance
-  r=$((16#${hex:1:2}))
-  g=$((16#${hex:3:2}))
-  b=$((16#${hex:5:2}))
-  luminance=$(((2126 * r + 7152 * g + 722 * b) / 10000))
-  if (( luminance > 148 )); then
-    printf '%s\n' "$2"
+  local hex="$1" dark="$2" light="$3"
+  if (( $(luminance_of "$dark") > $(luminance_of "$light") )); then
+    dark="$3" light="$2"
+  fi
+  if (( $(luminance_of "$hex") > 148 )); then
+    printf '%s\n' "$dark"
   else
-    printf '%s\n' "$3"
+    printf '%s\n' "$light"
   fi
 }
 
