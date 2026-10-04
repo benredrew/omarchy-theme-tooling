@@ -34,6 +34,27 @@ check_readme() {
   done
 }
 
+# Every key in colors.toml must be one Omarchy reads: a name used by its theme
+# templates or by omarchy-theme-color. The list comes from the installed
+# Omarchy, so it follows Omarchy updates; without one, the check is skipped.
+check_palette_keys() {
+  local colors="$1" omarchy="${OMARCHY_PATH:-/usr/share/omarchy}" known unknown
+  if [[ ! -d $omarchy/default/themed || ! -f $omarchy/bin/omarchy-theme-color ]]; then
+    echo "agent-theme-package: no Omarchy at $omarchy; skipping the colors.toml key check" >&2
+    return 0
+  fi
+  known=$({
+    grep -rhoE '\{\{[^}]*\}\}' "$omarchy"/default/themed/*.tpl | grep -oE '[a-z_][a-z0-9_]*'
+    grep -hoE 'THEME_COLORS\[[a-z_0-9]+\]' "$omarchy/bin/omarchy-theme-color" | sed -E 's/THEME_COLORS\[|\]//g'
+    echo mode
+  } | sort -u)
+  unknown=$(sed -nE 's/^[[:space:]]*([A-Za-z_][A-Za-z0-9_]*)[[:space:]]*=.*/\1/p' "$colors" | sort -u | comm -23 - <(printf '%s\n' "$known"))
+  [[ -z $unknown ]] || {
+    echo "agent-theme-package: colors.toml has keys Omarchy never reads: $(echo $unknown | tr ' ' ',' | sed 's/,/, /g')" >&2
+    exit 1
+  }
+}
+
 validate() {
   local title='OMARCHY PALETTE'
   if [[ ${1:-} == --title ]]; then
@@ -66,6 +87,7 @@ validate() {
 
   [[ -f $repo/LICENSE ]] || { echo 'agent-theme-package: missing LICENSE (the author chooses the license)' >&2; exit 1; }
   check_readme "$repo/README.md"
+  check_palette_keys "$repo/colors.toml"
 
   local -a levels=()
   mapfile -t levels < <(find "$repo/backgrounds" -maxdepth 1 -type f -printf '%f\n' | sort | while read -r filename; do
