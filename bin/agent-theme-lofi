@@ -23,6 +23,10 @@ Methods (more may be added; each maps the same 0–1 strength scale):
                    dithering, monochrome grain and lifted blacks; its strongest
                    level is drawn only from the theme's own colors (needs
                    --colors; with --tint only it quantizes to 12 image colors)
+  low-res-painting edge-preserving flattening into painted shapes at lower
+                   resolution, a few flat undithered colors, lifted pastel
+                   light with a warm wash, soft glow and gentle grain: a
+                   lo-fi-beats illustration look
 
 The four files above are each method's reference points. Other counts sample
 the same scale evenly: the first level is always crisp, the last (when N > 1)
@@ -31,9 +35,10 @@ level between reference points is named after the nearest one and suffixed
 with its strength in percent, e.g. B-lofi-17.png. Letters stay sortable: past
 26 levels every name uses two letters (AA, AB, ...).
 
---tint sets soft-tint's color wash. --colors reads `accent` (the wash) and,
-for low-res-speckle, the theme palette from an Omarchy colors.toml. Without
-either, the neutral dusk tint #9A5B58 is used. The output directory must be
+--tint sets the color wash (soft-tint, low-res-painting). --colors reads it
+from an Omarchy colors.toml instead: `accent` for soft-tint, the pale
+`selection` color for low-res-painting, plus the theme palette for
+low-res-speckle. Without either, the neutral dusk tint #9A5B58 is used. The output directory must be
 empty (or not exist), preventing accidental replacement of a prior spectrum.
 EOF
 }
@@ -70,18 +75,29 @@ level_letters() {
 level_treatment() {
   awk -v method="$1" -v i="$2" -v n="$3" 'BEGIN {
     split("crisp lofi heavy-lofi ultra-lofi", name)
+    # One row per setting: its values at strength 0, 1/3, 2/3 and 1.
     if (method == "soft-tint") {
-      k = 7
-      split("100 96 92 88", p1); split("100 86 70 56", p2)    # brightness, saturation
-      split("0 1 3 5", p3);      split("0 -7 -15 -22", p4)    # shadow lift, contrast
-      split("0 1.2 2.8 4.5", p5); split("0 0.22 0.55 1.05", p6) # haze, blur
-      split("0 3 8 14", p7)                                   # tint strength
+      row("100 96 92 88"); row("100 86 70 56")      # brightness, saturation
+      row("0 1 3 5"); row("0 -7 -15 -22")           # shadow lift, contrast
+      row("0 1.2 2.8 4.5"); row("0 0.22 0.55 1.05") # haze, blur
+      row("0 3 8 14")                               # tint strength
+    } else if (method == "low-res-speckle") {
+      row("1 3 5 8")       # pixel size (source pixels per output pixel)
+      row("256 48 16 12")  # color count; the strongest level uses the theme palette
+      row("0 0.5 0.8 1.0") # grain
+      row("0 4 7 10")      # black lift (%)
     } else {
-      k = 4
-      split("1 3 5 8", p1)       # pixel size (source pixels per output pixel)
-      split("256 48 16 12", p2)  # color count; the strongest level uses the theme palette
-      split("0 0.5 0.8 1.0", p3) # grain
-      split("0 4 7 10", p4)      # black lift (%)
+      row("1 2 3 4")         # painting scale (source pixels per painted pixel)
+      row("0 2 3 4")         # kuwahara radius at painting scale
+      row("256 28 16 10")    # flat colors, undithered
+      row("1 1.2 1.4 1.6")   # gamma
+      row("0 5 10 14")       # black lift (%)
+      row("100 103 105 106") # brightness
+      row("100 108 115 120") # saturation
+      row("100 97 95 94")    # hue (toward warm yellow-green)
+      row("0 5 9 12")        # warm wash strength
+      row("0 15 25 35")      # glow blend
+      row("0 0.2 0.3 0.35")  # grain
     }
     span = (n > 1) ? n - 1 : 1
     seg = int(3 * i / span); rem = (3 * i) % span; frac = rem / span
@@ -94,11 +110,10 @@ level_treatment() {
     for (j = 1; j <= k; j++) out = out v(j) " "
     print out label
   }
-  function v(j,   a, b) {
-    a = (j == 1) ? p1[s] : (j == 2) ? p2[s] : (j == 3) ? p3[s] : (j == 4) ? p4[s] : (j == 5) ? p5[s] : (j == 6) ? p6[s] : p7[s]
-    if (frac == 0) return a
-    b = (j == 1) ? p1[s+1] : (j == 2) ? p2[s+1] : (j == 3) ? p3[s+1] : (j == 4) ? p4[s+1] : (j == 5) ? p5[s+1] : (j == 6) ? p6[s+1] : p7[s+1]
-    return sprintf("%.4g", a + frac * (b - a))
+  function row(values,   t, x) { k++; split(values, t); for (x = 1; x <= 4; x++) P[k, x] = t[x] }
+  function v(j) {
+    if (frac == 0) return P[j, s]
+    return sprintf("%.4g", P[j, s] + frac * (P[j, s + 1] - P[j, s]))
   }'
 }
 
@@ -131,8 +146,8 @@ main() {
     esac
   done
   (( $# == 2 )) || { usage >&2; exit 2; }
-  [[ $method == soft-tint || $method == low-res-speckle ]] || {
-    echo "agent-theme-lofi: unknown method '$method' (soft-tint, low-res-speckle)" >&2
+  [[ $method == soft-tint || $method == low-res-speckle || $method == low-res-painting ]] || {
+    echo "agent-theme-lofi: unknown method '$method' (soft-tint, low-res-speckle, low-res-painting)" >&2
     exit 2
   }
   [[ $levels =~ ^[1-9][0-9]*$ ]] || { echo 'agent-theme-lofi: --levels must be a whole number of at least 1' >&2; exit 2; }
@@ -143,7 +158,11 @@ main() {
     echo 'agent-theme-lofi: choose either --tint or --colors, not both' >&2
     exit 2
   }
-  [[ -n $colors ]] && tint=$(toml_color accent "$colors")
+  local wash="$tint"
+  if [[ -n $colors ]]; then
+    tint=$(toml_color accent "$colors")
+    wash=$(toml_color selection "$colors")
+  fi
 
   local source="$1" output_dir="$2"
   need_image "$source"
@@ -190,6 +209,21 @@ main() {
       MAGICK_THREAD_LIMIT=1 magick "$source_frame" -modulate "${s[0]},${s[1]},100" \
         -brightness-contrast "${s[2]},${s[3]}" -evaluate Add "${s[4]}%" -blur "0x${s[5]}" \
         -fill "$tint" -colorize "${s[6]}" "${stable_png[@]}" "PNG24:$out"
+    elif [[ $method == low-res-painting ]]; then
+      # Flatten into painted shapes at reduced resolution, grade toward warm
+      # pastel light, then quantize at full size without dithering so color
+      # bands stay clean, softened edges and a glow on top. Edge softening and
+      # glow scale with width (1.2px and 24px at 3840px).
+      local scale small_w small_h edge glow
+      scale=$(printf '%.0f' "${s[0]}"); (( scale >= 1 )) || scale=1
+      small_w=$(( (width + scale / 2) / scale )); small_h=$(( (height + scale / 2) / scale ))
+      read -r edge glow < <(awk -v w="$width" 'BEGIN { printf "%.4g %.4g\n", 1.2 * w / 3840, 24 * w / 3840 }')
+      MAGICK_THREAD_LIMIT=1 magick "$source_frame" -resize "${small_w}x${small_h}!" -kuwahara "${s[1]}" \
+        -gamma "${s[3]}" +level "${s[4]}%,100%" -modulate "${s[5]},${s[6]},${s[7]}" -fill "$wash" -colorize "${s[8]}" \
+        -resize "${width}x${height}!" -dither None -colors "$(printf '%.0f' "${s[2]}")" -blur "0x$edge" \
+        \( +clone -blur "0x$glow" \) -compose blend -define compose:args="${s[9]}" -composite \
+        \( +clone -fill gray50 -colorize 100 -seed 7 -attenuate "${s[10]}" +noise Gaussian -colorspace gray \) \
+        -compose overlay -composite "${stable_png[@]}" "PNG24:$out"
     else
       # Work at reduced resolution so grain and dither land on the coarse
       # pixel grid, then scale back up with nearest-neighbour sampling.

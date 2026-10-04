@@ -12,7 +12,8 @@ theme assets or wallpapers.
 - `agent-theme-lofi` makes a non-destructive, deterministic wallpaper
   treatment spectrum from one source image: 4 levels (A–D) by default,
   `--levels N` for any count, and `--method` to choose the treatment
-  (`soft-tint`, the default, or `low-res-speckle`; more may be added).
+  (`soft-tint`, the default, `low-res-speckle`, or `low-res-painting`; more
+  may be added).
 - `agent-theme-package validate` verifies that a theme repository contains only
   package assets and that its committed preview boards reproduce exactly.
 
