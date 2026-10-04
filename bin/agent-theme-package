@@ -50,8 +50,10 @@ validate() {
       *.png|*.jpg|*.jpeg|*.webp) printf '%s\n' "$repo/backgrounds/$filename" ;;
     esac
   done)
-  (( ${#levels[@]} >= 2 && ${#levels[@]} <= 8 )) || {
-    echo 'agent-theme-package: backgrounds/ must hold 2–8 ordered filter-level images' >&2
+  # One wallpaper or any number of ordered filter levels; agent-theme-preview
+  # rejects a count too high for the image width.
+  (( ${#levels[@]} >= 1 )) || {
+    echo 'agent-theme-package: backgrounds/ must hold at least one image' >&2
     exit 1
   }
 

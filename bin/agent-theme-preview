@@ -5,11 +5,13 @@ set -euo pipefail
 usage() {
   cat <<'EOF'
 Usage:
-  agent-theme-preview wallpaper [--gap PX] <colors.toml> <output.png> <level-1.png> <level-2.png> [...]
+  agent-theme-preview wallpaper [--gap PX] <colors.toml> <output.png> <level-1.png> [level-2.png ...]
   agent-theme-preview palette [--title TEXT] [--size WIDTHxHEIGHT] <colors.toml> <output.png>
 
 wallpaper
-  Composites 2–8 same-framing filter levels into contiguous diagonal regions.
+  Composites one or more same-framing filter levels into contiguous diagonal
+  regions (one level is shown whole). The limit is width: each region keeps
+  at least 48px of image between gaps.
   Each image contributes only its true spatial area; blank gutters and
   Omarchy-style palette borders make the treatment progression unambiguous.
 
@@ -54,13 +56,12 @@ render_wallpaper() {
     shift 2
   fi
   [[ $gap =~ ^[0-9]+$ ]] || { echo 'agent-theme-preview: --gap must be a positive integer' >&2; exit 2; }
-  (( $# >= 5 )) || { usage >&2; exit 2; }
+  (( $# >= 3 )) || { usage >&2; exit 2; }
 
   local colors="$1" output="$2"
   shift 2
   local -a levels=("$@")
   local n=${#levels[@]}
-  (( n >= 2 && n <= 8 )) || { echo 'agent-theme-preview: wallpaper needs 2–8 filter levels' >&2; exit 2; }
   [[ -f $colors ]] || { echo "agent-theme-preview: missing colors file: $colors" >&2; exit 2; }
   local image
   for image in "${levels[@]}"; do need_image "$image"; done
@@ -69,6 +70,13 @@ render_wallpaper() {
   geometry=$(magick identify -format '%w %h' "${levels[0]}")
   read -r width height <<<"$geometry"
   (( width > 0 && height > 0 )) || { echo 'agent-theme-preview: unreadable image geometry' >&2; exit 2; }
+  # Any number of levels works until a region would be too thin to judge: each
+  # needs at least 48px of image between its gaps (strokes eat ~11px of that).
+  local max_levels=$((width / (gap + 48)))
+  (( n <= max_levels )) || {
+    echo "agent-theme-preview: $n levels leave regions too thin at ${width}px wide with --gap $gap (max $max_levels)" >&2
+    exit 2
+  }
   base=$(toml_color darker_background "$colors")
   inactive=$(toml_color hyprland_inactive_border "$colors")
   fg=$(toml_color bright_foreground "$colors")
