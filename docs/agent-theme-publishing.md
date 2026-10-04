@@ -22,6 +22,8 @@ agent tooling lives under `~/.local/bin` and `~/.agents`.
 Use `agent-theme-lofi --colors colors.toml <source-image> <output-directory>`
 to create a non-destructive A–D spectrum of same-framing wallpaper copies. It
 never changes the source and refuses to reuse a non-empty output directory.
+Never use AI re-generation for a filtered version of a licensed photograph;
+the levels must come from this repeatable raster pipeline.
 
 | File | Intent |
 | --- | --- |
