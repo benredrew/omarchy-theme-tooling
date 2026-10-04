@@ -59,7 +59,10 @@ Create a public repository named `omarchy-<name>-theme`. It contains only:
 - `backgrounds/` with the ordered wallpaper levels;
 - `previews/filter-intensity.png` and `previews/palette.png`, embedded in the
   README so GitHub visitors can see the options;
-- a concise README and, whenever required, clear photographer attribution.
+- `README.md` in the standard format of `docs/theme-readme.md` (installed as
+  `~/.agents/OMARCHY-THEME-README.md`): fixed sections Install, Backgrounds,
+  Previews, Photo, License, with photographer credit and rights basis;
+- `LICENSE` holding the license the author chose. Ask; never choose it for them.
 
 Do not put scripts, renderer copies, package-manager files, or agent workflow
 documents in the theme repository.
@@ -70,8 +73,9 @@ Before committing, run:
 agent-theme-package validate --title "THEME NAME" /path/to/omarchy-name-theme
 ```
 
-It rejects tooling directories and verifies that both committed preview PNGs
-regenerate byte-for-byte from `colors.toml` and the ordered background files.
+It rejects tooling directories, checks the README format and that a `LICENSE`
+exists, and verifies that both committed preview PNGs regenerate byte-for-byte
+from `colors.toml` and the ordered background files.
 
 ## Publication
 

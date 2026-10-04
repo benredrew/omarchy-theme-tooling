@@ -24,6 +24,7 @@ install -Dm755 bin/agent-theme-preview ~/.local/bin/agent-theme-preview
 install -Dm755 bin/agent-theme-lofi ~/.local/bin/agent-theme-lofi
 install -Dm755 bin/agent-theme-package ~/.local/bin/agent-theme-package
 install -Dm644 docs/agent-theme-publishing.md ~/.agents/OMARCHY-THEME-PUBLISHING.md
+install -Dm644 docs/theme-readme.md ~/.agents/OMARCHY-THEME-README.md
 ```
 
 The publishing guide documents the image-rights check, GitHub publication,

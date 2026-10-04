@@ -14,6 +14,26 @@ standard preview assets under previews/.
 EOF
 }
 
+# The README follows docs/theme-readme.md: a # title, then exactly these ##
+# sections in order, plus the hero image and both preview boards. Headings
+# inside code fences are ignored.
+check_readme() {
+  local readme="$1" expected='Install|Backgrounds|Previews|Photo|License' found title asset
+  title=$(awk '/^```/ { fence = !fence; next } !fence && /^# / { print; exit }' "$readme")
+  [[ -n $title ]] || { echo 'agent-theme-package: README.md needs a "# Theme Name" title (see docs/theme-readme.md)' >&2; exit 1; }
+  found=$(awk '/^```/ { fence = !fence; next } !fence && /^## / { sub(/^## /, ""); printf "%s%s", sep, $0; sep = "|" }' "$readme")
+  [[ $found == "$expected" ]] || {
+    echo "agent-theme-package: README.md sections must be ${expected//|/, } in that order; found: ${found//|/, }" >&2
+    exit 1
+  }
+  for asset in '](preview.png)' 'previews/filter-intensity.png' 'previews/palette.png'; do
+    grep -qF -- "$asset" "$readme" || {
+      echo "agent-theme-package: README.md must include '$asset' (see docs/theme-readme.md)" >&2
+      exit 1
+    }
+  done
+}
+
 validate() {
   local title='OMARCHY PALETTE'
   if [[ ${1:-} == --title ]]; then
@@ -43,6 +63,9 @@ validate() {
       exit 1
     }
   done
+
+  [[ -f $repo/LICENSE ]] || { echo 'agent-theme-package: missing LICENSE (the author chooses the license)' >&2; exit 1; }
+  check_readme "$repo/README.md"
 
   local -a levels=()
   mapfile -t levels < <(find "$repo/backgrounds" -maxdepth 1 -type f -printf '%f\n' | sort | while read -r filename; do
