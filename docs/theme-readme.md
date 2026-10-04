@@ -18,7 +18,7 @@ checks the required parts. Copy the template below and replace each `<...>`.
   `omarchy theme set <slug>`. Once the theme is listed in the registry, add
   the shorter `omarchy theme install <slug>` above the URL form.
 - **Backgrounds** names every level in order with its letter, says which
-  `agent-theme-lofi` method produced them, names the intended level, and says
+  `agent-theme-levels` method produced them, names the intended level, and says
   Omarchy starts on the first one and `omarchy theme bg next` cycles.
 - **Previews** is the two-column table of `previews/filter-intensity.png`
   (width 520) and `previews/palette.png` (width 320).
@@ -53,8 +53,8 @@ omarchy theme set <slug>
 
 ## Backgrounds
 
-<N> ordered treatments of the same photo, made with `agent-theme-lofi
---method <method>`: **A Crisp**, **B Lo-fi**, ... <one sentence on what the
+<N> ordered treatments of the same photo, made with `agent-theme-levels
+--method <method>`: **A Crisp**, **B Light**, ... <one sentence on what the
 method does>. <Letter> is the intended look. Omarchy starts on A; switch with
 `omarchy theme bg next`.
 
@@ -62,7 +62,7 @@ method does>. <Letter> is the intended look. Omarchy starts on A; switch with
 
 | Wallpaper treatment levels | Palette |
 | --- | --- |
-| <img src="previews/filter-intensity.png" alt="Crisp through ultra lo-fi wallpaper levels in diagonal, bordered regions" width="520"> | <img src="previews/palette.png" alt="<Theme Name> role-based color palette" width="320"> |
+| <img src="previews/filter-intensity.png" alt="Crisp through strongest wallpaper levels in diagonal, bordered regions" width="520"> | <img src="previews/palette.png" alt="<Theme Name> role-based color palette" width="320"> |
 
 ## Photo
 

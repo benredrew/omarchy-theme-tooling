@@ -10,16 +10,16 @@ agent tooling lives under `~/.local/bin` and `~/.agents`.
 1. Keep the working theme under `~/.config/omarchy/themes/<slug>/` and its
    wallpaper levels under `~/.config/omarchy/backgrounds/<slug>/`.
 2. Order same-framing filter levels with sortable filenames, for example
-   `A-crisp.png` through `D-ultra-lofi.png`.
+   `A-crisp.png` through `D-strong.png`.
 3. Use `agent-theme-preview` to make the deterministic wallpaper and palette
    boards. Submit them through `agent-gallery`, with a tile only for a
    palette-only set.
 4. Never apply a new palette before the user has reviewed it, unless they
    explicitly ask to apply it.
 
-## Lo-fi wallpaper spectrum
+## Wallpaper treatment levels
 
-Use `agent-theme-lofi --colors colors.toml <source-image> <output-directory>`
+Use `agent-theme-levels --colors colors.toml <source-image> <output-directory>`
 to create a non-destructive spectrum of same-framing wallpaper copies: A–D by
 default, or any count with `--levels N` (evenly spaced along the same scale;
 the default 4 are its reference points, listed below). It never changes the
@@ -32,20 +32,20 @@ strengths; each maps the same A–D strength scale, and more may be added:
 
 | Method | Look |
 | --- | --- |
-| `soft-tint` (default) | Softening, highlight/shadow compression, muted color and a restrained accent tint. Soft rather than lo-fi. |
+| `soft-tint` (default) | Softening, highlight/shadow compression, muted color and a restrained accent tint. |
 | `low-res-speckle` | Hard-edged lower resolution, fewer colors with dithering, monochrome grain and lifted blacks. Its strongest level uses only the theme's own colors (pass `--colors`). |
 | `low-res-painting` | Edge-preserving flattening into painted shapes at lower resolution, a few flat undithered colors, lifted pastel light with a warm `selection`-color wash, soft glow and gentle grain: a lo-fi-beats illustration look. |
 
 | File | Intent |
 | --- | --- |
 | `A-crisp.png` | Faithful clean baseline. |
-| `B-lofi.png` | First reference strength of the method. |
-| `C-heavy-lofi.png` | Clearly stylized while preserving the focal silhouette. |
-| `D-ultra-lofi.png` | The method's maximum that remains legible. |
+| `B-light.png` | First reference strength of the method. |
+| `C-medium.png` | Clearly stylized while preserving the focal silhouette. |
+| `D-strong.png` | The method's maximum that remains legible. |
 
 Every method preserves crop, orientation, and resolution. When the user asks
-for a "lo-fi" look, show the methods' boards side by side rather than assuming
-one: what reads as lo-fi is the user's call.
+for a look by name ("lo-fi", "vintage"), show the methods' boards side by side
+rather than assuming one: what reads as that look is the user's call.
 
 After rendering, use `agent-theme-preview wallpaper` on the levels and submit
 the resulting board to Agent Gallery as a floating review set. Apply or package

@@ -5,16 +5,16 @@ set -euo pipefail
 usage() {
   cat <<'EOF'
 Usage:
-  agent-theme-lofi [--method NAME] [--levels N] [--tint #RRGGBB | --colors colors.toml]
-                   <source-image> <output-directory>
+  agent-theme-levels [--method NAME] [--levels N] [--tint #RRGGBB | --colors colors.toml]
+                     <source-image> <output-directory>
 
 Creates N same-framing PNG copies (default 4) without modifying the source
 image, evenly spaced from a faithful baseline to the method's strongest
 treatment:
   A-crisp.png       faithful baseline
-  B-lofi.png        first reference strength
-  C-heavy-lofi.png  second reference strength
-  D-ultra-lofi.png  strongest treatment, still legible
+  B-light.png       first reference strength
+  C-medium.png      second reference strength
+  D-strong.png      strongest treatment, still legible
 
 Methods (more may be added; each maps the same 0–1 strength scale):
   soft-tint        (default) softening, tonal compression, muted color and a
@@ -32,7 +32,7 @@ The four files above are each method's reference points. Other counts sample
 the same scale evenly: the first level is always crisp, the last (when N > 1)
 always the strongest, and the default 4 reproduces exactly the files above. A
 level between reference points is named after the nearest one and suffixed
-with its strength in percent, e.g. B-lofi-17.png. Letters stay sortable: past
+with its strength in percent, e.g. B-light-17.png. Letters stay sortable: past
 26 levels every name uses two letters (AA, AB, ...).
 
 --tint sets the color wash (soft-tint, low-res-painting). --colors reads it
@@ -44,9 +44,9 @@ EOF
 }
 
 need_image() {
-  [[ -f $1 ]] || { echo "agent-theme-lofi: missing image: $1" >&2; exit 2; }
+  [[ -f $1 ]] || { echo "agent-theme-levels: missing image: $1" >&2; exit 2; }
   [[ $(file --brief --mime-type -- "$1") == image/* ]] || {
-    echo "agent-theme-lofi: not an image: $1" >&2
+    echo "agent-theme-levels: not an image: $1" >&2
     exit 2
   }
 }
@@ -54,7 +54,7 @@ need_image() {
 toml_color() {
   local key="$1" colors="$2" value
   value=$(sed -nE "s/^[[:space:]]*${key}[[:space:]]*=[[:space:]]*\\\"(#[0-9A-Fa-f]{6})\\\"[[:space:]]*(#.*)?$/\\1/p" "$colors" | head -n 1)
-  [[ -n $value ]] || { echo "agent-theme-lofi: colors.toml lacks '$key'" >&2; exit 2; }
+  [[ -n $value ]] || { echo "agent-theme-levels: colors.toml lacks '$key'" >&2; exit 2; }
   printf '%s\n' "$value"
 }
 
@@ -74,7 +74,7 @@ level_letters() {
 # point gets its exact values. Prints the method's settings, then the label.
 level_treatment() {
   awk -v method="$1" -v i="$2" -v n="$3" 'BEGIN {
-    split("crisp lofi heavy-lofi ultra-lofi", name)
+    split("crisp light medium strong", name)
     # One row per setting: its values at strength 0, 1/3, 2/3 and 1.
     if (method == "soft-tint") {
       row("100 96 92 88"); row("100 86 70 56")      # brightness, saturation
@@ -104,7 +104,7 @@ level_treatment() {
     if (seg >= 3) { seg = 3; frac = 0 }
     s = seg + 1
     label = name[s + (frac > 0.5 ? 1 : 0)]
-    if (i > 0 && label == "crisp") label = "lofi"   # crisp means untreated
+    if (i > 0 && label == "crisp") label = "light"   # crisp means untreated
     if (rem != 0) label = sprintf("%s-%d", label, int(100 * i / span + 0.5))
     out = ""
     for (j = 1; j <= k; j++) out = out v(j) " "
@@ -122,20 +122,20 @@ main() {
   while (( $# > 0 )); do
     case "$1" in
       --method)
-        method="${2:?agent-theme-lofi: --method needs a name}"
+        method="${2:?agent-theme-levels: --method needs a name}"
         shift 2
         ;;
       --levels)
-        levels="${2:?agent-theme-lofi: --levels needs a count}"
+        levels="${2:?agent-theme-levels: --levels needs a count}"
         shift 2
         ;;
       --tint)
-        tint="${2:?agent-theme-lofi: --tint needs #RRGGBB}"
+        tint="${2:?agent-theme-levels: --tint needs #RRGGBB}"
         tint_given=1
         shift 2
         ;;
       --colors)
-        colors="${2:?agent-theme-lofi: --colors needs colors.toml}"
+        colors="${2:?agent-theme-levels: --colors needs colors.toml}"
         shift 2
         ;;
       -h|--help|help)
@@ -147,15 +147,15 @@ main() {
   done
   (( $# == 2 )) || { usage >&2; exit 2; }
   [[ $method == soft-tint || $method == low-res-speckle || $method == low-res-painting ]] || {
-    echo "agent-theme-lofi: unknown method '$method' (soft-tint, low-res-speckle, low-res-painting)" >&2
+    echo "agent-theme-levels: unknown method '$method' (soft-tint, low-res-speckle, low-res-painting)" >&2
     exit 2
   }
-  [[ $levels =~ ^[1-9][0-9]*$ ]] || { echo 'agent-theme-lofi: --levels must be a whole number of at least 1' >&2; exit 2; }
-  (( levels <= 676 )) || { echo 'agent-theme-lofi: --levels is limited to 676 (two letters)' >&2; exit 2; }
-  [[ $tint =~ ^#[0-9A-Fa-f]{6}$ ]] || { echo 'agent-theme-lofi: tint must be #RRGGBB' >&2; exit 2; }
-  [[ -z $colors || -f $colors ]] || { echo "agent-theme-lofi: missing colors file: $colors" >&2; exit 2; }
+  [[ $levels =~ ^[1-9][0-9]*$ ]] || { echo 'agent-theme-levels: --levels must be a whole number of at least 1' >&2; exit 2; }
+  (( levels <= 676 )) || { echo 'agent-theme-levels: --levels is limited to 676 (two letters)' >&2; exit 2; }
+  [[ $tint =~ ^#[0-9A-Fa-f]{6}$ ]] || { echo 'agent-theme-levels: tint must be #RRGGBB' >&2; exit 2; }
+  [[ -z $colors || -f $colors ]] || { echo "agent-theme-levels: missing colors file: $colors" >&2; exit 2; }
   [[ -z $colors ]] || (( ! tint_given )) || {
-    echo 'agent-theme-lofi: choose either --tint or --colors, not both' >&2
+    echo 'agent-theme-levels: choose either --tint or --colors, not both' >&2
     exit 2
   }
   local wash="$tint"
@@ -167,7 +167,7 @@ main() {
   local source="$1" output_dir="$2"
   need_image "$source"
   if [[ -e $output_dir ]] && [[ -n $(find "$output_dir" -mindepth 1 -maxdepth 1 -print -quit) ]]; then
-    echo "agent-theme-lofi: output directory is not empty: $output_dir" >&2
+    echo "agent-theme-levels: output directory is not empty: $output_dir" >&2
     exit 2
   fi
   mkdir -p "$output_dir"
@@ -183,7 +183,7 @@ main() {
   # approximate neutrals, which scatters colored confetti across the image.
   local work=''
   if [[ $method == low-res-speckle && -n $colors ]]; then
-    work=$(mktemp -d /tmp/agent-theme-lofi-XXXXXX)
+    work=$(mktemp -d /tmp/agent-theme-levels-XXXXXX)
     trap "rm -rf -- '$work'" EXIT
     local key
     local -a swatches=()
