@@ -1,0 +1,212 @@
+#!/usr/bin/env bash
+# Deterministic review boards for Omarchy theme palettes and wallpaper filters.
+set -euo pipefail
+
+usage() {
+  cat <<'EOF'
+Usage:
+  agent-theme-preview wallpaper [--gap PX] <colors.toml> <output.png> <level-1.png> <level-2.png> [...]
+  agent-theme-preview palette [--title TEXT] [--size WIDTHxHEIGHT] <colors.toml> <output.png>
+
+wallpaper
+  Composites 2–8 same-framing filter levels into contiguous diagonal regions.
+  Each image contributes only its true spatial area; blank gutters and
+  Omarchy-style palette borders make the treatment progression unambiguous.
+
+palette
+  Draws a standard, role-based palette card. Every swatch includes its color
+  key and hexadecimal value. It defaults to a 640x694 half-workspace tile.
+EOF
+}
+
+need_image() {
+  [[ -f $1 ]] || { echo "agent-theme-preview: missing image: $1" >&2; exit 2; }
+  [[ $(file --brief --mime-type -- "$1") == image/* ]] || {
+    echo "agent-theme-preview: not an image: $1" >&2
+    exit 2
+  }
+}
+
+toml_color() {
+  local key="$1" colors="$2" value
+  value=$(sed -nE "s/^[[:space:]]*${key}[[:space:]]*=[[:space:]]*\\\"(#[0-9A-Fa-f]{6})\\\"[[:space:]]*(#.*)?$/\\1/p" "$colors" | head -n 1)
+  [[ -n $value ]] || { echo "agent-theme-preview: colors.toml lacks '$key'" >&2; exit 2; }
+  printf '%s\n' "$value"
+}
+
+text_on() {
+  local hex="$1" r g b luminance
+  r=$((16#${hex:1:2}))
+  g=$((16#${hex:3:2}))
+  b=$((16#${hex:5:2}))
+  luminance=$(((2126 * r + 7152 * g + 722 * b) / 10000))
+  if (( luminance > 148 )); then
+    printf '%s\n' "$2"
+  else
+    printf '%s\n' "$3"
+  fi
+}
+
+render_wallpaper() {
+  local gap=24
+  if [[ ${1:-} == --gap ]]; then
+    gap="${2:-}"
+    shift 2
+  fi
+  [[ $gap =~ ^[0-9]+$ ]] || { echo 'agent-theme-preview: --gap must be a positive integer' >&2; exit 2; }
+  (( $# >= 5 )) || { usage >&2; exit 2; }
+
+  local colors="$1" output="$2"
+  shift 2
+  local -a levels=("$@")
+  local n=${#levels[@]}
+  (( n >= 2 && n <= 8 )) || { echo 'agent-theme-preview: wallpaper needs 2–8 filter levels' >&2; exit 2; }
+  [[ -f $colors ]] || { echo "agent-theme-preview: missing colors file: $colors" >&2; exit 2; }
+  local image
+  for image in "${levels[@]}"; do need_image "$image"; done
+
+  local width height geometry base inactive fg darkfg accent orange yellow muted cyan magenta
+  geometry=$(magick identify -format '%w %h' "${levels[0]}")
+  read -r width height <<<"$geometry"
+  (( width > 0 && height > 0 )) || { echo 'agent-theme-preview: unreadable image geometry' >&2; exit 2; }
+  base=$(toml_color darker_background "$colors")
+  inactive=$(toml_color hyprland_inactive_border "$colors")
+  fg=$(toml_color bright_foreground "$colors")
+  darkfg=$(toml_color dark_background "$colors")
+  accent=$(toml_color accent "$colors")
+  orange=$(toml_color orange "$colors")
+  yellow=$(toml_color yellow "$colors")
+  muted=$(toml_color muted "$colors")
+  cyan=$(toml_color cyan "$colors")
+  magenta=$(toml_color magenta "$colors")
+  local -a border_colors=("$accent" "$orange" "$yellow" "$muted" "$cyan" "$magenta")
+
+  local work
+  work=$(mktemp -d /tmp/agent-theme-preview-XXXXXX)
+  trap 'rm -rf "$work"' RETURN
+  magick -size "${width}x${height}" "xc:${base}" "$work/canvas.png"
+
+  local slant=$((width / (n * 4)))
+  local half_gap=$((gap / 2))
+  local i left_top left_bottom right_top right_bottom top bottom polygon mask panel color
+  local -a edge_top=() edge_bottom=()
+  for ((i = 1; i < n; i++)); do
+    edge_top[i]=$((i * width / n + slant / 2))
+    edge_bottom[i]=$((edge_top[i] - slant))
+  done
+
+  for ((i = 0; i < n; i++)); do
+    if (( i == 0 )); then
+      left_top=0; left_bottom=0
+    else
+      left_top=$((edge_top[i] + half_gap))
+      left_bottom=$((edge_bottom[i] + half_gap))
+    fi
+    if (( i == n - 1 )); then
+      right_top=$width; right_bottom=$width
+    else
+      right_top=$((edge_top[i + 1] - half_gap))
+      right_bottom=$((edge_bottom[i + 1] - half_gap))
+    fi
+    polygon="${left_top},0 ${right_top},0 ${right_bottom},${height} ${left_bottom},${height}"
+    mask="$work/mask-$i.png"
+    panel="$work/panel-$i.png"
+    magick -size "${width}x${height}" xc:black -fill white -draw "polygon ${polygon}" "$mask"
+    magick "${levels[i]}" -resize "${width}x${height}!" "$mask" -alpha off -compose CopyOpacity -composite "$panel"
+    magick "$work/canvas.png" "$panel" -compose over -composite "$work/next.png"
+    mv "$work/next.png" "$work/canvas.png"
+
+    # A deep inactive outline plus a bright palette edge echoes Omarchy's
+    # inactive/active window-border treatment around every filter region.
+    color="${border_colors[i % ${#border_colors[@]}]}"
+    magick "$work/canvas.png" -fill none -stroke "$inactive" -strokewidth 8 -draw "polygon ${polygon}" \
+      -stroke "$color" -strokewidth 3 -draw "polygon ${polygon}" "$work/next.png"
+    mv "$work/next.png" "$work/canvas.png"
+  done
+
+  # PNG's normal compression can vary between otherwise identical writes.
+  # Use a metadata-free, uncompressed RGB PNG so identical inputs are also
+  # byte-identical across runs on this machine.
+  magick "$work/canvas.png" -strip -define png:exclude-chunk=date,time \
+    -define png:compression-level=0 "PNG24:${output}"
+  trap - RETURN
+  rm -rf "$work"
+  printf 'Rendered wallpaper review board: %s\n' "$output"
+}
+
+render_palette() {
+  local title='OMARCHY PALETTE'
+  local size='640x694'
+  while (( $# > 0 )); do
+    case "$1" in
+      --title) title="${2:?agent-theme-preview: --title needs text}"; shift 2 ;;
+      --size) size="${2:?agent-theme-preview: --size needs WIDTHxHEIGHT}"; shift 2 ;;
+      *) break ;;
+    esac
+  done
+  (( $# == 2 )) || { usage >&2; exit 2; }
+  local colors="$1" output="$2"
+  [[ -f $colors ]] || { echo "agent-theme-preview: missing colors file: $colors" >&2; exit 2; }
+  [[ $size =~ ^([1-9][0-9]*)x([1-9][0-9]*)$ ]] || {
+    echo 'agent-theme-preview: --size must be WIDTHxHEIGHT' >&2
+    exit 2
+  }
+  local width="${BASH_REMATCH[1]}" height="${BASH_REMATCH[2]}"
+
+  local background dark_background lighter_background foreground bright_foreground inactive accent selection
+  background=$(toml_color background "$colors")
+  dark_background=$(toml_color dark_background "$colors")
+  lighter_background=$(toml_color lighter_background "$colors")
+  foreground=$(toml_color foreground "$colors")
+  bright_foreground=$(toml_color bright_foreground "$colors")
+  inactive=$(toml_color hyprland_inactive_border "$colors")
+  accent=$(toml_color accent "$colors")
+  selection=$(toml_color selection "$colors")
+
+  local -a keys=(background dark_background lighter_background foreground accent selection red orange yellow green cyan blue magenta brown)
+  local font
+  font=$(fc-match -f '%{file}\n' 'sans-serif' | head -n 1)
+  local columns=2 rows=7 margin_x=$((width / 32)) margin_y=$((height / 30)) card_gap=$((width / 54)) bottom_margin=$((height / 38))
+  (( margin_x < 20 )) && margin_x=20
+  (( margin_y < 18 )) && margin_y=18
+  (( card_gap < 10 )) && card_gap=10
+  (( bottom_margin < 16 )) && bottom_margin=16
+  local title_size=$((width / 25)) subtitle_size=$((width / 58)) label_size=$((width / 48)) hex_size=$((width / 64))
+  (( title_size < 20 )) && title_size=20
+  (( subtitle_size < 10 )) && subtitle_size=10
+  (( label_size < 13 )) && label_size=13
+  (( hex_size < 10 )) && hex_size=10
+  local cards_top=$((margin_y + title_size + subtitle_size + 34))
+  local card_width=$(((width - 2 * margin_x - card_gap) / columns))
+  local card_height=$(((height - cards_top - bottom_margin - (rows - 1) * card_gap) / rows))
+  (( card_height >= 54 )) || { echo 'agent-theme-preview: requested palette size is too short' >&2; exit 2; }
+
+  local -a command=(magick -size "${width}x${height}" "xc:${background}" -font "$font" -fill "$bright_foreground" -pointsize "$title_size" -gravity NorthWest -annotate "+${margin_x}+${margin_y}" "$title" -fill "$foreground" -pointsize "$subtitle_size" -annotate "+${margin_x}+$((margin_y + title_size + 14))" 'theme palette · roles · hex in every swatch')
+  local key hex x y column row label_color shadow_radius radius label_y hex_y
+  shadow_radius=$((card_height / 7)); (( shadow_radius < 8 )) && shadow_radius=8
+  radius=$((card_height / 8)); (( radius < 7 )) && radius=7
+  for ((i = 0; i < ${#keys[@]}; i++)); do
+    key="${keys[i]}"
+    hex=$(toml_color "$key" "$colors")
+    column=$((i % columns)); row=$((i / columns))
+    x=$((margin_x + column * (card_width + card_gap)))
+    y=$((cards_top + row * (card_height + card_gap)))
+    label_color=$(text_on "$hex" "$dark_background" "$bright_foreground")
+    label_y=$((y + card_height / 5))
+    hex_y=$((y + card_height / 2 + 3))
+    command+=( -fill "$inactive" -stroke none -draw "roundrectangle $((x - 3)),$((y - 3)),$((x + card_width + 3)),$((y + card_height + 3)),${shadow_radius},${shadow_radius}" )
+    command+=( -fill "$hex" -stroke "$accent" -strokewidth 2 -draw "roundrectangle ${x},${y},$((x + card_width)),$((y + card_height)),${radius},${radius}" )
+    command+=( -fill "$label_color" -stroke none -pointsize "$label_size" -gravity NorthWest -annotate "+$((x + 13))+${label_y}" "$key" )
+    command+=( -fill "$label_color" -stroke none -pointsize "$hex_size" -gravity NorthWest -annotate "+$((x + 13))+${hex_y}" "${hex,,}" )
+  done
+  "${command[@]}" -strip -define png:exclude-chunk=date,time \
+    -define png:compression-level=0 "PNG24:${output}"
+  printf 'Rendered palette review board: %s\n' "$output"
+}
+
+case "${1:-}" in
+  wallpaper) shift; render_wallpaper "$@" ;;
+  palette) shift; render_palette "$@" ;;
+  -h|--help|help|'') usage ;;
+  *) usage >&2; exit 2 ;;
+esac

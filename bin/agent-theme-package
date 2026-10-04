@@ -1,0 +1,80 @@
+#!/usr/bin/env bash
+# Validate a clean, reproducible Omarchy theme package before publication.
+set -euo pipefail
+
+usage() {
+  cat <<'EOF'
+Usage:
+  agent-theme-package validate [--title "PALETTE TITLE"] <theme-repository>
+
+Validates a theme-only repository and regenerates its standard previews from
+colors.toml plus the ordered backgrounds/ images. A valid package must have
+colors.toml, README.md, preview.png, one or more backgrounds, and the two
+standard preview assets under previews/.
+EOF
+}
+
+validate() {
+  local title='OMARCHY PALETTE'
+  if [[ ${1:-} == --title ]]; then
+    title="${2:?agent-theme-package: --title needs text}"
+    shift 2
+  fi
+  (( $# == 1 )) || { usage >&2; exit 2; }
+  local repo="$1"
+  [[ -d $repo ]] || { echo "agent-theme-package: not a directory: $repo" >&2; exit 2; }
+  repo=$(realpath "$repo")
+
+  local -a required=(colors.toml README.md preview.png previews/filter-intensity.png previews/palette.png)
+  local path
+  for path in "${required[@]}"; do
+    [[ -f $repo/$path ]] || { echo "agent-theme-package: missing required asset: $path" >&2; exit 1; }
+  done
+  [[ -d $repo/backgrounds ]] || { echo 'agent-theme-package: missing backgrounds/' >&2; exit 1; }
+
+  local preview_width
+  preview_width=$(magick identify -format '%w' "$repo/preview.png")
+  (( preview_width >= 1000 )) || { echo 'agent-theme-package: preview.png must be at least 1000px wide' >&2; exit 1; }
+
+  local -a forbidden=(tools scripts bin node_modules .venv)
+  for path in "${forbidden[@]}"; do
+    [[ ! -e $repo/$path ]] || {
+      echo "agent-theme-package: theme repositories contain installable theme assets, not tooling ($path found)" >&2
+      exit 1
+    }
+  done
+
+  local -a levels=()
+  mapfile -t levels < <(find "$repo/backgrounds" -maxdepth 1 -type f -printf '%f\n' | sort | while read -r filename; do
+    case "$filename" in
+      *.png|*.jpg|*.jpeg|*.webp) printf '%s\n' "$repo/backgrounds/$filename" ;;
+    esac
+  done)
+  (( ${#levels[@]} >= 2 && ${#levels[@]} <= 8 )) || {
+    echo 'agent-theme-package: backgrounds/ must hold 2–8 ordered filter-level images' >&2
+    exit 1
+  }
+
+  local work
+  work=$(mktemp -d /tmp/agent-theme-package-XXXXXX)
+  trap 'rm -rf "$work"' RETURN
+  agent-theme-preview wallpaper --gap 26 "$repo/colors.toml" "$work/filter-intensity.png" "${levels[@]}" >/dev/null
+  agent-theme-preview palette --title "$title" "$repo/colors.toml" "$work/palette.png" >/dev/null
+  cmp -s "$repo/previews/filter-intensity.png" "$work/filter-intensity.png" || {
+    echo 'agent-theme-package: previews/filter-intensity.png is stale; regenerate it with agent-theme-preview' >&2
+    exit 1
+  }
+  cmp -s "$repo/previews/palette.png" "$work/palette.png" || {
+    echo 'agent-theme-package: previews/palette.png is stale; regenerate it with agent-theme-preview' >&2
+    exit 1
+  }
+  trap - RETURN
+  rm -rf "$work"
+  printf 'Theme package valid and previews are byte-identical: %s\n' "$repo"
+}
+
+case "${1:-}" in
+  validate) shift; validate "$@" ;;
+  -h|--help|help|'') usage ;;
+  *) usage >&2; exit 2 ;;
+esac
