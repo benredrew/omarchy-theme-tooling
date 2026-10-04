@@ -27,16 +27,25 @@ source and refuses to reuse a non-empty output directory.
 Never use AI re-generation for a filtered version of a licensed photograph;
 the levels must come from this repeatable raster pipeline.
 
+Choose the treatment with `--method`. Methods are separate looks, not
+strengths; each maps the same A–D strength scale, and more may be added:
+
+| Method | Look |
+| --- | --- |
+| `soft-tint` (default) | Softening, highlight/shadow compression, muted color and a restrained accent tint. Soft rather than lo-fi. |
+| `low-res-speckle` | Hard-edged lower resolution, fewer colors with dithering, monochrome grain and lifted blacks. Its strongest level uses only the theme's own colors (pass `--colors`). |
+
 | File | Intent |
 | --- | --- |
 | `A-crisp.png` | Faithful clean baseline. |
-| `B-lofi.png` | Gentle softening, lower saturation/local contrast, and restrained tonal compression. |
-| `C-heavy-lofi.png` | Clearly stylized, muted, and softer while preserving the focal silhouette. |
-| `D-ultra-lofi.png` | Dreamy maximum treatment that remains legible rather than becoming a color wash. |
+| `B-lofi.png` | First reference strength of the method. |
+| `C-heavy-lofi.png` | Clearly stylized while preserving the focal silhouette. |
+| `D-ultra-lofi.png` | The method's maximum that remains legible. |
 
-The command increases the same controls monotonically across the spectrum:
-micro-detail reduction, highlight/shadow compression, muted theme-led color,
-and a restrained accent tint. It preserves crop, orientation, and resolution.
+Every method preserves crop, orientation, and resolution. When the user asks
+for a "lo-fi" look, show the methods' boards side by side rather than assuming
+one: what reads as lo-fi is the user's call.
+
 After rendering, use `agent-theme-preview wallpaper` on the levels and submit
 the resulting board to Agent Gallery as a floating review set. Apply or package
 only the level the user selects by its letter.
