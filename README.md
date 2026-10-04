@@ -9,8 +9,9 @@ theme assets or wallpapers.
 - `agent-theme-preview` renders a role-based palette card and a diagonal
   wallpaper filter-intensity board from a `colors.toml` plus ordered,
   same-framing images. Identical inputs produce byte-identical PNGs.
-- `agent-theme-lofi` makes a non-destructive, deterministic A–D lo-fi
-  wallpaper spectrum from one source image, optionally using the theme accent
+- `agent-theme-lofi` makes a non-destructive, deterministic lo-fi wallpaper
+  spectrum (4 levels, A–D, by default; `--levels N` for any count) from one
+  source image, optionally using the theme accent
   as its restrained color wash.
 - `agent-theme-package validate` verifies that a theme repository contains only
   package assets and that its committed preview boards reproduce exactly.

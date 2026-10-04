@@ -20,8 +20,10 @@ agent tooling lives under `~/.local/bin` and `~/.agents`.
 ## Lo-fi wallpaper spectrum
 
 Use `agent-theme-lofi --colors colors.toml <source-image> <output-directory>`
-to create a non-destructive A–D spectrum of same-framing wallpaper copies. It
-never changes the source and refuses to reuse a non-empty output directory.
+to create a non-destructive spectrum of same-framing wallpaper copies: A–D by
+default, or any count with `--levels N` (evenly spaced along the same scale;
+the default 4 are its reference points, listed below). It never changes the
+source and refuses to reuse a non-empty output directory.
 Never use AI re-generation for a filtered version of a licensed photograph;
 the levels must come from this repeatable raster pipeline.
 
@@ -37,7 +39,7 @@ micro-detail reduction, highlight/shadow compression, muted theme-led color,
 and a restrained accent tint. It preserves crop, orientation, and resolution.
 After rendering, use `agent-theme-preview wallpaper` on the levels and submit
 the resulting board to Agent Gallery as a floating review set. Apply or package
-only the user-selected A–D level.
+only the level the user selects by its letter.
 
 ## Package
 
