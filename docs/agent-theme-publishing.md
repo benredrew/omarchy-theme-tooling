@@ -12,8 +12,16 @@ agent tooling lives under `~/.local/bin` and `~/.agents`.
 2. Order same-framing filter levels with sortable filenames, for example
    `A-crisp.png` through `D-strong.png`.
 3. Use `agent-theme-preview` to make the deterministic wallpaper and palette
-   boards. Submit them through `agent-gallery`, with a tile only for a
-   palette-only set.
+   boards, plus the root `preview.png` picker tile. Make it with:
+
+   ```bash
+   agent-theme-preview picker --title "THEME NAME" --subtitle "Artist · dark" \
+     colors.toml backgrounds/A-crisp.png preview.png
+   ```
+
+   Use `--top-offset` or a caller-chosen `--closeup` crop where the composition
+   needs it. Submit review boards through `agent-gallery`, with a tile only for
+   a palette-only set.
 4. Never apply a new palette before the user has reviewed it, unless they
    explicitly ask to apply it.
 

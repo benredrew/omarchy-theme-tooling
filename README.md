@@ -6,9 +6,10 @@ theme assets or wallpapers.
 
 ## Included commands
 
-- `agent-theme-preview` renders a role-based palette card and a diagonal
-  wallpaper filter-intensity board from a `colors.toml` plus ordered,
-  same-framing images. Identical inputs produce byte-identical, compressed PNGs.
+- `agent-theme-preview` renders a role-based palette card, a diagonal wallpaper
+  filter-intensity board, and a standard 1920x1080 theme-picker tile from a
+  `colors.toml` plus images. Identical inputs produce byte-identical,
+  compressed PNGs.
 - `agent-theme-levels` makes a non-destructive, deterministic wallpaper
   treatment spectrum from one source image: 4 levels (A–D) by default,
   `--levels N` for any count, and `--method` to choose the treatment
@@ -40,6 +41,9 @@ agent-theme-preview wallpaper --gap 26 colors.toml previews/filter-intensity.png
   backgrounds/A-crisp.png backgrounds/B-light.png \
   backgrounds/C-medium.png backgrounds/D-strong.png
 agent-theme-preview palette --title "THEME NAME" colors.toml previews/palette.png
+# Make the theme picker tile from its chosen top image and palette.
+agent-theme-preview picker --title "THEME NAME" --subtitle "Artist · dark" \
+  colors.toml backgrounds/A-crisp.png preview.png
 
 # Confirm the theme package is clean and reproducible before publishing.
 agent-theme-package validate --title "THEME NAME" /path/to/omarchy-theme-name-theme

@@ -7,6 +7,9 @@ usage() {
 Usage:
   agent-theme-preview wallpaper [--gap PX] <colors.toml> <output.png> <level-1.png> [level-2.png ...]
   agent-theme-preview palette [--title TEXT] [--size WIDTHxHEIGHT] <colors.toml> <output.png>
+  agent-theme-preview picker [--title TEXT] [--subtitle TEXT] [--top-offset PX]
+                             [--closeup IMAGE:WxH+X+Y]
+                             <colors.toml> <top-image> <output.png>
 
 wallpaper
   Composites one or more same-framing filter levels into contiguous diagonal
@@ -18,6 +21,13 @@ wallpaper
 palette
   Draws a standard, role-based palette card. Every swatch includes its color
   key and hexadecimal value. It defaults to a 640x694 half-workspace tile.
+
+picker
+  Draws a 1920x1080 Omarchy theme-picker tile: an 820px top image and a
+  palette band with a close-up, title, swatches, and type sample. --top-offset
+  selects the vertical crop after the top image is resized to 1920px wide.
+  --closeup uses a source image and crop geometry; without it, the top image's
+  centered crop is used.
 EOF
 }
 
@@ -219,9 +229,91 @@ render_palette() {
   printf 'Rendered palette review board: %s\n' "$output"
 }
 
+render_picker() {
+  local title='OMARCHY THEME' subtitle='' top_offset=0 closeup_spec=''
+  while (( $# > 0 )); do
+    case "$1" in
+      --title) title="${2:?agent-theme-preview: --title needs text}"; shift 2 ;;
+      --subtitle) subtitle="${2:?agent-theme-preview: --subtitle needs text}"; shift 2 ;;
+      --top-offset) top_offset="${2:?agent-theme-preview: --top-offset needs pixels}"; shift 2 ;;
+      --closeup) closeup_spec="${2:?agent-theme-preview: --closeup needs IMAGE:WxH+X+Y}"; shift 2 ;;
+      *) break ;;
+    esac
+  done
+  (( $# == 3 )) || { usage >&2; exit 2; }
+  local colors="$1" top_image="$2" output="$3"
+  [[ -f $colors ]] || { echo "agent-theme-preview: missing colors file: $colors" >&2; exit 2; }
+  need_image "$top_image"
+  [[ $top_offset =~ ^[0-9]+$ ]] || { echo 'agent-theme-preview: --top-offset must be a non-negative integer' >&2; exit 2; }
+
+  local closeup_image="$top_image" closeup_crop=''
+  if [[ -n $closeup_spec ]]; then
+    if [[ $closeup_spec =~ ^(.+):([1-9][0-9]*x[1-9][0-9]*\+[0-9]+\+[0-9]+)$ ]]; then
+      closeup_image="${BASH_REMATCH[1]}"
+      closeup_crop="${BASH_REMATCH[2]}"
+    else
+      echo 'agent-theme-preview: --closeup must be IMAGE:WxH+X+Y' >&2
+      exit 2
+    fi
+    need_image "$closeup_image"
+  fi
+
+  local scaled_height
+  scaled_height=$(magick identify -format '%w %h' "$top_image" | awk '{ printf "%d", $2 * 1920 / $1 + 0.5 }')
+  (( scaled_height >= top_offset + 820 )) || {
+    echo "agent-theme-preview: --top-offset ${top_offset} leaves less than 820px after resizing the top image to 1920px wide" >&2
+    exit 2
+  }
+
+  local background foreground dark_foreground accent selection key
+  background=$(toml_color background "$colors")
+  foreground=$(toml_color foreground "$colors")
+  dark_foreground=$(toml_color dark_foreground "$colors")
+  accent=$(toml_color accent "$colors")
+  selection=$(toml_color selection "$colors")
+  local -a chip_keys=(accent red orange yellow green cyan blue magenta)
+  local -a chips=()
+  for key in "${chip_keys[@]}"; do
+    chips+=( \( -size 100x100 "xc:$(toml_color "$key" "$colors")" \) )
+  done
+
+  local regular='/usr/share/fonts/liberation/LiberationSans-Regular.ttf'
+  local bold='/usr/share/fonts/liberation/LiberationSans-Bold.ttf'
+  [[ -f $regular && -f $bold ]] || {
+    echo 'agent-theme-preview: Liberation Sans fonts are required for picker tiles' >&2
+    exit 2
+  }
+  local work
+  work=$(mktemp -d /tmp/agent-theme-preview-picker-XXXXXX)
+  trap 'rm -rf "$work"' RETURN
+
+  local -a closeup=("$closeup_image")
+  [[ -z $closeup_crop ]] || closeup+=( -crop "$closeup_crop" +repage )
+  closeup+=( -resize '196x196^' -gravity center -extent 196x196 -bordercolor "$selection" -border 6 )
+  magick -size 1920x260 "xc:${background}" \
+    \( "${closeup[@]}" \) -gravity northwest -geometry +124+26 -composite \
+    -fill "$foreground" -font "$bold" -pointsize 56 -annotate +364+20 "$title" \
+    -fill "$dark_foreground" -font "$regular" -pointsize 28 -annotate +366+90 "$subtitle" \
+    \( "${chips[@]}" -background "$background" -splice 14x0 +append -chop 14x0 \) \
+    -gravity northwest -geometry +364+136 -composite \
+    \( -size 220x100 "xc:${foreground}" -fill "$background" -font "$bold" -pointsize 52 \
+       -gravity center -annotate +0+0 Aa \) -gravity northwest -geometry +1302+136 -composite \
+    "$work/band.png"
+  magick "$top_image" -resize '1920x' -crop "1920x820+0+${top_offset}" +repage \
+    -background black -gravity north -extent 1920x1080 "$work/band.png" \
+    -gravity northwest -geometry +0+820 -composite \
+    \( -size 1920x8 "xc:${accent}" \) -geometry +0+812 -composite \
+    -colorspace sRGB -strip -define png:exclude-chunk=date,time \
+    -define png:compression-level=9 -define png:compression-filter=5 -define png:compression-strategy=1 "PNG24:${output}"
+  trap - RETURN
+  rm -rf "$work"
+  printf 'Rendered theme picker tile: %s\n' "$output"
+}
+
 case "${1:-}" in
   wallpaper) shift; render_wallpaper "$@" ;;
   palette) shift; render_palette "$@" ;;
+  picker) shift; render_picker "$@" ;;
   -h|--help|help|'') usage ;;
   *) usage >&2; exit 2 ;;
 esac
