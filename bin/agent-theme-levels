@@ -19,10 +19,12 @@ treatment:
 Methods (more may be added; each maps the same 0–1 strength scale):
   soft-tint        (default) softening, tonal compression, muted color and a
                    restrained tint wash
-  low-res-speckle  lower resolution with hard-edged pixels, fewer colors with
-                   dithering, monochrome grain and lifted blacks; its strongest
-                   level is drawn only from the theme's own colors (needs
-                   --colors; with --tint only it quantizes to 12 image colors)
+  low-res-speckle  hard-edged pixels, each the true local average of the image
+                   under it, then fewer colors with half-strength dithering,
+                   light monochrome grain and slightly lifted blacks; its
+                   strongest level is drawn only from the theme's own colors
+                   (needs --colors; with --tint only it quantizes to 12 image
+                   colors)
   low-res-painting edge-preserving flattening into painted shapes at lower
                    resolution, a few flat undithered colors, lifted pastel
                    light with a warm wash, soft glow and gentle grain: a
@@ -82,10 +84,10 @@ level_treatment() {
       row("0 1.2 2.8 4.5"); row("0 0.22 0.55 1.05") # haze, blur
       row("0 3 8 14")                               # tint strength
     } else if (method == "low-res-speckle") {
-      row("1 3 5 8")       # pixel size (source pixels per output pixel)
-      row("256 48 16 12")  # color count; the strongest level uses the theme palette
-      row("0 0.5 0.8 1.0") # grain
-      row("0 4 7 10")      # black lift (%)
+      row("1 4 8 12")          # pixel size (source pixels per output pixel)
+      row("512 64 24 12")      # color count; the strongest level uses the theme palette
+      row("0 0.325 0.5 0.65")  # grain
+      row("0 2.75 5 7.25")     # black lift (%)
     } else {
       row("1 2 3 4")         # painting scale (source pixels per painted pixel)
       row("0 2 3 4")         # kuwahara radius at painting scale
@@ -226,19 +228,21 @@ main() {
         \( +clone -fill gray50 -colorize 100 -seed 7 -attenuate "${s[10]}" +noise Gaussian -colorspace gray \) \
         -compose overlay -composite "${stable_png[@]}" "PNG24:$out"
     else
-      # Work at reduced resolution so grain and dither land on the coarse
-      # pixel grid, then scale back up with nearest-neighbour sampling.
+      # Average each pixel block in linear light so it keeps the image's local
+      # color, then grain and a half-strength dither on that coarse grid (a
+      # full-strength dither scatters confetti), and scale back up with
+      # nearest-neighbour sampling.
       local pixel lift small_w small_h last=$((i == levels - 1))
       local -a quantize
       pixel=$(printf '%.0f' "${s[0]}"); (( pixel >= 1 )) || pixel=1
       small_w=$(( (width + pixel - 1) / pixel )); small_h=$(( (height + pixel - 1) / pixel ))
       lift=$(printf '%.0f' "${s[3]}")
       if (( last )) && [[ -n $work ]]; then
-        quantize=(-dither FloydSteinberg -remap "$work/palette.png")
+        quantize=(-dither FloydSteinberg -define dither:diffusion-amount=50% -remap "$work/palette.png")
       else
-        quantize=(-dither FloydSteinberg -colors "$(printf '%.0f' "${s[1]}")")
+        quantize=(-dither FloydSteinberg -define dither:diffusion-amount=50% -colors "$(printf '%.0f' "${s[1]}")")
       fi
-      MAGICK_THREAD_LIMIT=1 magick "$source_frame" -resize "${small_w}x${small_h}!" \
+      MAGICK_THREAD_LIMIT=1 magick "$source_frame" -colorspace RGB -scale "${small_w}x${small_h}!" -colorspace sRGB \
         +level "${lift}%,$((100 - lift / 2))%" \
         \( +clone -fill gray50 -colorize 100 -seed 7 -attenuate "${s[2]}" +noise Gaussian -colorspace gray \) \
         -compose overlay -composite "${quantize[@]}" \
