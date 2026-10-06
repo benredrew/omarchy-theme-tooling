@@ -75,7 +75,7 @@ agent-theme-package validate --title "THEME NAME" /path/to/omarchy-name-theme
 
 It rejects tooling directories, checks the README format and that a `LICENSE`
 exists, rejects `colors.toml` keys Omarchy never reads (judged against the
-installed Omarchy's templates), and verifies that both committed preview PNGs regenerate byte-for-byte
+installed Omarchy's templates), and verifies that both committed preview PNGs regenerate pixel-for-pixel
 from `colors.toml` and the ordered background files.
 
 ## Publication

@@ -37,6 +37,13 @@ check_readme() {
 # Every key in colors.toml must be one Omarchy reads: a name used by its theme
 # templates or by omarchy-theme-color. The list comes from the installed
 # Omarchy, so it follows Omarchy updates; without one, the check is skipped.
+# Previews are compared by pixels, not bytes, so a preview written with an
+# older encoder setting (e.g. uncompressed) still matches its regeneration.
+same_pixels() {
+  [[ $(magick identify -format '%wx%h' "$1" 2>/dev/null) == $(magick identify -format '%wx%h' "$2") ]] || return 1
+  [[ $(magick compare -metric AE "$1" "$2" null: 2>&1 | cut -d ' ' -f 1) == 0 ]]
+}
+
 check_palette_keys() {
   local colors="$1" omarchy="${OMARCHY_PATH:-/usr/share/omarchy}" known unknown
   if [[ ! -d $omarchy/default/themed || ! -f $omarchy/bin/omarchy-theme-color ]]; then
@@ -107,17 +114,17 @@ validate() {
   trap 'rm -rf "$work"' RETURN
   agent-theme-preview wallpaper --gap 26 "$repo/colors.toml" "$work/filter-intensity.png" "${levels[@]}" >/dev/null
   agent-theme-preview palette --title "$title" "$repo/colors.toml" "$work/palette.png" >/dev/null
-  cmp -s "$repo/previews/filter-intensity.png" "$work/filter-intensity.png" || {
+  same_pixels "$repo/previews/filter-intensity.png" "$work/filter-intensity.png" || {
     echo 'agent-theme-package: previews/filter-intensity.png is stale; regenerate it with agent-theme-preview' >&2
     exit 1
   }
-  cmp -s "$repo/previews/palette.png" "$work/palette.png" || {
+  same_pixels "$repo/previews/palette.png" "$work/palette.png" || {
     echo 'agent-theme-package: previews/palette.png is stale; regenerate it with agent-theme-preview' >&2
     exit 1
   }
   trap - RETURN
   rm -rf "$work"
-  printf 'Theme package valid and previews are byte-identical: %s\n' "$repo"
+  printf 'Theme package valid and previews are pixel-identical: %s\n' "$repo"
 }
 
 case "${1:-}" in

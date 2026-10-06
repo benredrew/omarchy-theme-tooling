@@ -139,11 +139,11 @@ render_wallpaper() {
     mv "$work/next.png" "$work/canvas.png"
   done
 
-  # PNG's normal compression can vary between otherwise identical writes.
-  # Use a metadata-free, uncompressed RGB PNG so identical inputs are also
-  # byte-identical across runs on this machine.
+  # Fixed zlib level, filter and strategy with no metadata: identical inputs
+  # give byte-identical PNGs on this machine, at a fraction of the size of an
+  # uncompressed one.
   magick "$work/canvas.png" -strip -define png:exclude-chunk=date,time \
-    -define png:compression-level=0 "PNG24:${output}"
+    -define png:compression-level=9 -define png:compression-filter=5 -define png:compression-strategy=1 "PNG24:${output}"
   trap - RETURN
   rm -rf "$work"
   printf 'Rendered wallpaper review board: %s\n' "$output"
@@ -215,7 +215,7 @@ render_palette() {
     command+=( -fill "$label_color" -stroke none -pointsize "$hex_size" -gravity NorthWest -annotate "+$((x + 13))+${hex_y}" "${hex,,}" )
   done
   "${command[@]}" -strip -define png:exclude-chunk=date,time \
-    -define png:compression-level=0 "PNG24:${output}"
+    -define png:compression-level=9 -define png:compression-filter=5 -define png:compression-strategy=1 "PNG24:${output}"
   printf 'Rendered palette review board: %s\n' "$output"
 }
 

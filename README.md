@@ -8,7 +8,7 @@ theme assets or wallpapers.
 
 - `agent-theme-preview` renders a role-based palette card and a diagonal
   wallpaper filter-intensity board from a `colors.toml` plus ordered,
-  same-framing images. Identical inputs produce byte-identical PNGs.
+  same-framing images. Identical inputs produce byte-identical, compressed PNGs.
 - `agent-theme-levels` makes a non-destructive, deterministic wallpaper
   treatment spectrum from one source image: 4 levels (A–D) by default,
   `--levels N` for any count, and `--method` to choose the treatment

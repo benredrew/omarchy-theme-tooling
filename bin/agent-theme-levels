@@ -173,7 +173,8 @@ main() {
   mkdir -p "$output_dir"
 
   local source_frame="${source}[0]"
-  local -a stable_png=(-colorspace sRGB -strip -define png:exclude-chunk=date,time -define png:compression-level=0)
+  local -a stable_png=(-colorspace sRGB -strip -define png:exclude-chunk=date,time
+    -define png:compression-level=9 -define png:compression-filter=5 -define png:compression-strategy=1)
   local width height
   read -r width height < <(magick identify -format '%w %h\n' "$source_frame")
 
