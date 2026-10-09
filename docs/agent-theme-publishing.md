@@ -40,8 +40,7 @@ strengths; each maps the same A–D strength scale, and more may be added:
 
 | Method | Look |
 | --- | --- |
-| `soft-tint` (default) | Softening, highlight/shadow compression, muted color and a restrained accent tint. |
-| `low-res-speckle` | Hard-edged pixels that each keep the local average color, fewer colors with half-strength dithering, light monochrome grain and slightly lifted blacks. Its strongest level uses only the theme's own colors (pass `--colors`). |
+| `low-res-speckle` (default) | Hard-edged pixels that each keep the local average color, fewer colors with half-strength dithering, light monochrome grain and slightly lifted blacks. Its strongest level uses only the theme's own colors (pass `--colors`). |
 | `low-res-painting` | Edge-preserving flattening into painted shapes at lower resolution, a few flat undithered colors, lifted pastel light with a warm `selection`-color wash, soft glow and gentle grain: a lo-fi-beats illustration look. |
 
 | File | Intent |

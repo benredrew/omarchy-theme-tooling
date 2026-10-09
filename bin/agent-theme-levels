@@ -17,9 +17,7 @@ treatment:
   D-strong.png      strongest treatment, still legible
 
 Methods (more may be added; each maps the same 0–1 strength scale):
-  soft-tint        (default) softening, tonal compression, muted color and a
-                   restrained tint wash
-  low-res-speckle  hard-edged pixels, each the true local average of the image
+  low-res-speckle  (default) hard-edged pixels, each the true local average of the image
                    under it, then fewer colors with half-strength dithering,
                    light monochrome grain and slightly lifted blacks; its
                    strongest level is drawn only from the theme's own colors
@@ -37,10 +35,10 @@ level between reference points is named after the nearest one and suffixed
 with its strength in percent, e.g. B-light-17.png. Letters stay sortable: past
 26 levels every name uses two letters (AA, AB, ...).
 
---tint sets the color wash (soft-tint, low-res-painting). --colors reads it
-from an Omarchy colors.toml instead: `accent` for soft-tint, the pale
-`selection` color for low-res-painting, plus the theme palette for
-low-res-speckle. Without either, the neutral dusk tint #9A5B58 is used. The output directory must be
+--tint sets low-res-painting's color wash. --colors reads it from an Omarchy
+colors.toml instead (the pale `selection` color), and also supplies the theme
+palette for low-res-speckle. Without either, the neutral dusk tint #9A5B58 is
+used. The output directory must be
 empty (or not exist), preventing accidental replacement of a prior spectrum.
 EOF
 }
@@ -78,12 +76,7 @@ level_treatment() {
   awk -v method="$1" -v i="$2" -v n="$3" 'BEGIN {
     split("crisp light medium strong", name)
     # One row per setting: its values at strength 0, 1/3, 2/3 and 1.
-    if (method == "soft-tint") {
-      row("100 96 92 88"); row("100 86 70 56")      # brightness, saturation
-      row("0 1 3 5"); row("0 -7 -15 -22")           # shadow lift, contrast
-      row("0 1.2 2.8 4.5"); row("0 0.22 0.55 1.05") # haze, blur
-      row("0 3 8 14")                               # tint strength
-    } else if (method == "low-res-speckle") {
+    if (method == "low-res-speckle") {
       row("1 4 8 12")          # pixel size (source pixels per output pixel)
       row("512 64 24 12")      # color count; the strongest level uses the theme palette
       row("0 0.325 0.5 0.65")  # grain
@@ -120,7 +113,7 @@ level_treatment() {
 }
 
 main() {
-  local tint='#9A5B58' tint_given=0 colors='' levels=4 method='soft-tint'
+  local tint='#9A5B58' tint_given=0 colors='' levels=4 method='low-res-speckle'
   while (( $# > 0 )); do
     case "$1" in
       --method)
@@ -148,8 +141,8 @@ main() {
     esac
   done
   (( $# == 2 )) || { usage >&2; exit 2; }
-  [[ $method == soft-tint || $method == low-res-speckle || $method == low-res-painting ]] || {
-    echo "agent-theme-levels: unknown method '$method' (soft-tint, low-res-speckle, low-res-painting)" >&2
+  [[ $method == low-res-speckle || $method == low-res-painting ]] || {
+    echo "agent-theme-levels: unknown method '$method' (low-res-speckle, low-res-painting)" >&2
     exit 2
   }
   [[ $levels =~ ^[1-9][0-9]*$ ]] || { echo 'agent-theme-levels: --levels must be a whole number of at least 1' >&2; exit 2; }
@@ -161,10 +154,7 @@ main() {
     exit 2
   }
   local wash="$tint"
-  if [[ -n $colors ]]; then
-    tint=$(toml_color accent "$colors")
-    wash=$(toml_color selection "$colors")
-  fi
+  [[ -z $colors ]] || wash=$(toml_color selection "$colors")
 
   local source="$1" output_dir="$2"
   need_image "$source"
@@ -205,13 +195,6 @@ main() {
     out="$output_dir/$(level_letters "$i" "$levels")-$label.png"
     if (( i == 0 )); then
       MAGICK_THREAD_LIMIT=1 magick "$source_frame" "${stable_png[@]}" "PNG24:$out"
-    elif [[ $method == soft-tint ]]; then
-      # Increases along the same four dimensions: lower saturation/local
-      # contrast, lighter shadows, softened micro-detail, then a restrained
-      # theme-color wash. Geometry and framing never change.
-      MAGICK_THREAD_LIMIT=1 magick "$source_frame" -modulate "${s[0]},${s[1]},100" \
-        -brightness-contrast "${s[2]},${s[3]}" -evaluate Add "${s[4]}%" -blur "0x${s[5]}" \
-        -fill "$tint" -colorize "${s[6]}" "${stable_png[@]}" "PNG24:$out"
     elif [[ $method == low-res-painting ]]; then
       # Flatten into painted shapes at reduced resolution, grade toward warm
       # pastel light, then quantize at full size without dithering so color

@@ -13,8 +13,8 @@ theme assets or wallpapers.
 - `agent-theme-levels` makes a non-destructive, deterministic wallpaper
   treatment spectrum from one source image: 4 levels (A–D) by default,
   `--levels N` for any count, and `--method` to choose the treatment
-  (`soft-tint`, the default, `low-res-speckle`, or `low-res-painting`; more
-  may be added).
+  (`low-res-speckle`, the default, or `low-res-painting`; more may be
+  added).
 - `agent-theme-package validate` verifies that a theme repository contains only
   package assets and that its committed preview boards reproduce exactly.
 
@@ -53,7 +53,7 @@ Use the shared Agent Gallery to submit review boards. Palette-only sets tile;
 wallpaper and mixed sets float.
 
 `agent-theme-levels` is deliberately non-destructive: it never writes to the
-source image and refuses a non-empty output directory. Its four levels keep the
-same crop and resolution while increasing softening, tonal compression, muted
-color, and a restrained theme-led tint. Review the generated board before
+source image and refuses a non-empty output directory. Every level keeps the
+same crop and resolution while the chosen method's treatment strengthens from
+crisp to its legible maximum. Review the generated board before
 choosing or applying a background.
