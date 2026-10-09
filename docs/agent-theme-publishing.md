@@ -55,8 +55,10 @@ for a look by name ("lo-fi", "vintage"), show the methods' boards side by side
 rather than assuming one: what reads as that look is the user's call.
 
 After rendering, use `agent-theme-preview wallpaper` on the levels and submit
-the resulting board to Agent Gallery as a floating review set. Apply or package
-only the level the user selects by its letter.
+the resulting board to Agent Gallery as a floating review set. Every level of
+the gradient ships in the theme's `backgrounds/` as a wallpaper option; that is
+the point of the spectrum. The level the user picks by its letter is the
+default wallpaper, the one the theme opens on.
 
 ## Package
 
